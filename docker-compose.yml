@@ -10,10 +10,12 @@ services:
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "python", "-c", "import sys,urllib.request as u; sys.exit(0 if u.urlopen('http://127.0.0.1:8000/api/health').getcode()==200 else 1)"]
+      test: [ "CMD", "python", "-c", "import sys,urllib.request as u; sys.exit(0 if u.urlopen('http://127.0.0.1:8000/api/health').getcode()==200 else 1)" ]
       interval: 5s
       timeout: 5s
       retries: 3
+    volumes:
+      - /var/log/calculadora:/var/log/calculadora
 
   frontend:
     container_name: frontend
@@ -37,6 +39,8 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    volumes:
+      - /var/log/calculadora:/var/log/calculadora
 
 networks:
   app:

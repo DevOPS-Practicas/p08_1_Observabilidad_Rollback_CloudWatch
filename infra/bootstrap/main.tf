@@ -460,6 +460,33 @@ data "aws_iam_policy_document" "main_infra_provisioning" {
       ]
     }
   }
+  # SSM Parameter Store: infra/main crea el parámetro con la config del CloudWatch Agent.
+  # Acotado a la ruta /<proyecto>/ (principio de menor privilegio).
+  statement {
+    sid    = "SSMParameterManagement"
+    effect = "Allow"
+    actions = [
+      "ssm:PutParameter",
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:DeleteParameter",
+      "ssm:AddTagsToResource",
+      "ssm:RemoveTagsFromResource",
+      "ssm:ListTagsForResource"
+    ]
+    resources = [
+      "arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/*"
+    ]
+  }
+
+  # DescribeParameters no admite permisos por recurso: tiene que ir sobre "*".
+  # Terraform lo usa al leer el parámetro (tier, tipo de dato).
+  statement {
+    sid       = "SSMDescribeParameters"
+    effect    = "Allow"
+    actions   = ["ssm:DescribeParameters"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "main_infra_provisioning" {

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Despliega siempre la imagen más reciente publicada en ECR.
-APP_VERSION="latest"
+APP_VERSION="$(cat /opt/mi-app/scripts/VERSION 2>/dev/null || echo latest)"
 export APP_VERSION
 
 cd /opt/mi-app

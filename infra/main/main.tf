@@ -390,9 +390,13 @@ resource "aws_launch_template" "app" {
   }
 
   # user_data parametrizado con la región y codificado en Base64
+
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    aws_region = var.aws_region
+    aws_region         = var.aws_region
+    cw_agent_ssm_param = "/mi-app/cloudwatch-agent/config"
+    app_log_file_path  = "/var/log/calculadora/calculadora.log"
   }))
+
 
   tag_specifications {
     resource_type = "instance"

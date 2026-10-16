@@ -71,7 +71,20 @@ echo ""
 echo "📦 Empaquetando artefactos de despliegue (appspec.yml, docker-compose.yml, scripts)..."
 BUNDLE_FILE="/tmp/bundle-${IMAGE_TAG}.zip"
 rm -f "$BUNDLE_FILE"
-zip -r "$BUNDLE_FILE" appspec.yml docker-compose.yml scripts/ -x "scripts/deploy_local.sh"
+
+# Se empaqueta desde una carpeta temporal para añadir archivos generados sin ensuciar el repo
+STAGE_DIR="$(mktemp -d)"
+cp appspec.yml docker-compose.yml "$STAGE_DIR/"
+cp -r scripts "$STAGE_DIR/scripts"
+rm -f "$STAGE_DIR/scripts/deploy_local.sh"
+
+# Versión de imagen de ESTA revisión (la lee start_app.sh)
+echo "$IMAGE_TAG" > "$STAGE_DIR/scripts/VERSION"
+# Espera opcional del hook ValidateService (0 = sin espera). Solo para la demo.
+echo "${VALIDATE_SLEEP_SECONDS:-0}" > "$STAGE_DIR/scripts/VALIDATE_SLEEP"
+
+(cd "$STAGE_DIR" && zip -r "$BUNDLE_FILE" appspec.yml docker-compose.yml scripts/)
+rm -rf "$STAGE_DIR"
 
 echo "☁️ Subiendo bundle a Amazon S3 (s3://${S3_BUCKET}/releases/app-${IMAGE_TAG}.zip)..."
 aws s3 cp "$BUNDLE_FILE" "s3://${S3_BUCKET}/releases/app-${IMAGE_TAG}.zip"
@@ -108,7 +121,8 @@ if [ "$DEPLOY_SUCCESS" = true ]; then
     done
   fi
 else
-  echo "⚠️ El despliegue falló o sigue en progreso. Consulta los logs con:"
-  echo "   aws deploy get-deployment --deployment-id $DEPLOYMENT_ID"
+  echo "⚠️ El despliegue falló, fue detenido o sigue en progreso."
+  aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" \
+    --query 'deploymentInfo.{estado:status,error:errorInformation}' --output json
   exit 1
 fi
