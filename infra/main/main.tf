@@ -393,8 +393,8 @@ resource "aws_launch_template" "app" {
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
     aws_region         = var.aws_region
-    cw_agent_ssm_param = "/mi-app/cloudwatch-agent/config"
-    app_log_file_path  = "/var/log/calculadora/calculadora.log"
+    cw_agent_ssm_param = local.cw_agent_ssm_param
+    app_log_file_path  = local.app_log_file_path
   }))
 
 
@@ -579,9 +579,15 @@ resource "aws_codedeploy_deployment_group" "main" {
     }
   }
 
-  # Rollback automático en caso de fallo durante el despliegue
+  # Configuración de alarma CloudWatch para rollback automático
+  alarm_configuration {
+    alarms  = [aws_cloudwatch_metric_alarm.alb_5xx.alarm_name]
+    enabled = true
+  }
+
+  # Rollback automático en caso de fallo durante el despliegue o activación de alarma
   auto_rollback_configuration {
     enabled = true
-    events  = ["DEPLOYMENT_FAILURE"]
+    events  = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]
   }
 }
