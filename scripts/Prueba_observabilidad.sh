@@ -557,7 +557,7 @@ if [ "$SIMULATE_ALARM" = true ] && [ "$FOUND_ALARMS_COUNT" -gt 0 ]; then
       --state-reason "Prueba controlada de observabilidad en CI/CD" \
       --region "$AWS_REGION" 2>/dev/null; then
 
-    sleep 3
+    sleep 60
     CHECK_ALARM=$(aws cloudwatch describe-alarms --alarm-names "$ALARM_5XX" --region "$AWS_REGION" --query 'MetricAlarms[0].StateValue' --output text 2>/dev/null || echo "UNKNOWN")
 
     if [ "$CHECK_ALARM" == "ALARM" ]; then
