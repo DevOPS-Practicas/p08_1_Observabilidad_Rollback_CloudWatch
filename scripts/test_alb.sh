@@ -52,6 +52,8 @@ usage() {
   echo ""
   echo -e "${BOLD}Opciones:${NC}"
   echo "  -u, --url <URL>            URL base o DNS del ALB (ej. http://calculadora-alb-123.us-east-1.elb.amazonaws.com)"
+  echo "  -g, --target-group <ARN>   ARN del Target Group de AWS ALB"
+  echo "      --asg-name <NAME>      Nombre del Auto Scaling Group de AWS"
   echo "  -n, --requests <NUM>       Número total de peticiones por prueba de carga (default: 200)"
   echo "  -c, --concurrency <NUM>    Número de peticiones concurrentes / hilos (default: 10)"
   echo "  -t, --timeout <SEC>        Tiempo límite de espera por petición en segundos (default: 5)"
@@ -75,6 +77,14 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     -u|--url)
       ALB_URL="$2"
+      shift 2
+      ;;
+    -g|--target-group)
+      TARGET_GROUP_ARN="$2"
+      shift 2
+      ;;
+    --asg-name)
+      ASG_NAME="$2"
       shift 2
       ;;
     -n|--requests)
@@ -137,11 +147,10 @@ done
 echo -e "${GREEN}✅ Herramientas requeridas disponibles (curl, python3, jq).${NC}"
 
 # ==============================================================================
-# Detección Automática de Parámetros desde Terraform (si no se proveyó URL)
+# Detección Automática de Parámetros desde Terraform
 # ==============================================================================
 
-if [ -z "$ALB_URL" ]; then
-  echo -e "\n${BLUE}🔎 No se especificó --url. Intentando obtener información desde Terraform en infra/main/...${NC}"
+if [ -z "$ALB_URL" ] || [ -z "$TARGET_GROUP_ARN" ] || [ -z "$ASG_NAME" ]; then
   if [ -d "$INFRA_DIR" ]; then
     cd "$INFRA_DIR"
     if TF_JSON=$(terraform output -json 2>/dev/null); then
@@ -150,12 +159,12 @@ if [ -z "$ALB_URL" ]; then
       DETECTED_ASG=$(echo "$TF_JSON" | jq -r '.asg_name.value // empty')
       DETECTED_REGION=$(echo "$TF_JSON" | jq -r '.aws_region.value // empty')
 
-      if [ -n "$DETECTED_ALB" ]; then
+      if [ -z "$ALB_URL" ] && [ -n "$DETECTED_ALB" ]; then
         ALB_URL="http://${DETECTED_ALB}"
         echo -e "${GREEN}✅ ALB DNS detectado desde Terraform:${NC} ${ALB_URL}"
       fi
-      [ -n "$DETECTED_TG" ] && TARGET_GROUP_ARN="$DETECTED_TG"
-      [ -n "$DETECTED_ASG" ] && ASG_NAME="$DETECTED_ASG"
+      [ -z "$TARGET_GROUP_ARN" ] && [ -n "$DETECTED_TG" ] && TARGET_GROUP_ARN="$DETECTED_TG"
+      [ -z "$ASG_NAME" ] && [ -n "$DETECTED_ASG" ] && ASG_NAME="$DETECTED_ASG"
       [ -n "$DETECTED_REGION" ] && AWS_REGION="$DETECTED_REGION"
     fi
     cd "$ROOT_DIR"

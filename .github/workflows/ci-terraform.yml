@@ -3,6 +3,10 @@ name: CI - Terraform Plan
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "infra/**"
+      - ".github/workflows/ci-terraform.yml"
+  workflow_dispatch:
 
 permissions:
   id-token: write

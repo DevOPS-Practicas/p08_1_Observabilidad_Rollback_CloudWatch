@@ -33,12 +33,13 @@ CODEDEPLOY_GROUP=$(echo "$TF_JSON" | jq -r '.codedeploy_deployment_group_name.va
 ALB_DNS=$(echo "$TF_JSON" | jq -r '.alb_dns_name.value // empty')
 EC2_IPS=$(echo "$TF_JSON" | jq -r '.ec2_public_ips.value[]? // empty')
 
-if [ -z "$BACKEND_ECR_REPO" ] || [ -z "$FRONTEND_ECR_REPO" ] || [ -z "$S3_BUCKET" ] || [ -z "$CODEDEPLOY_APP" ]; then
+if [ -z "$BACKEND_ECR_REPO" ] || [ -z "$FRONTEND_ECR_REPO" ] || [ -z "$S3_BUCKET" ] || [ -z "$CODEDEPLOY_APP" ] || [ -z "$ECR_REGISTRY" ]; then
   echo "❌ Error: No se pudieron obtener los outputs de Terraform. ¿Ya ejecutaste 'terraform apply' en el directorio infra/main/?"
   exit 1
 fi
 
 echo "✅ Región: $AWS_REGION"
+echo "✅ ECR Registry: $ECR_REGISTRY"
 echo "✅ ECR Backend: $BACKEND_ECR_REPO"
 echo "✅ ECR Frontend: $FRONTEND_ECR_REPO"
 echo "✅ S3 Bucket: $S3_BUCKET"
@@ -56,13 +57,13 @@ cd "$ROOT_DIR"
 IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
 echo ""
 echo "🐳 [1/2] Construyendo y subiendo imagen del Backend (Tag: $IMAGE_TAG y latest)..."
-docker build -t "${BACKEND_ECR_REPO}:${IMAGE_TAG}" -t "${BACKEND_ECR_REPO}:latest" ./backend
+docker build --platform linux/amd64 -t "${BACKEND_ECR_REPO}:${IMAGE_TAG}" -t "${BACKEND_ECR_REPO}:latest" ./backend
 docker push "${BACKEND_ECR_REPO}:${IMAGE_TAG}"
 docker push "${BACKEND_ECR_REPO}:latest"
 
 echo ""
 echo "🐳 [2/2] Construyendo y subiendo imagen del Frontend (Tag: $IMAGE_TAG y latest)..."
-docker build -t "${FRONTEND_ECR_REPO}:${IMAGE_TAG}" -t "${FRONTEND_ECR_REPO}:latest" ./frontend
+docker build --platform linux/amd64 -t "${FRONTEND_ECR_REPO}:${IMAGE_TAG}" -t "${FRONTEND_ECR_REPO}:latest" ./frontend
 docker push "${FRONTEND_ECR_REPO}:${IMAGE_TAG}"
 docker push "${FRONTEND_ECR_REPO}:latest"
 

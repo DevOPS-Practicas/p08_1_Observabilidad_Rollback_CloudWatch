@@ -6,7 +6,11 @@ on:
     paths:
       - "infra/main/**"
       - "scripts/**"
-      - "app/**" # ajusta esta ruta a donde esté tu código de aplicación
+      - "backend/**"
+      - "frontend/**"
+      - "docker-compose.yml"
+      - "appspec.yml"
+      - ".github/workflows/cd-terraform-deploy.yml"
   workflow_dispatch: # permite disparo manual con control sobre la destrucción
     inputs:
       wait_minutes:
@@ -98,6 +102,9 @@ jobs:
           CW_DASHBOARD=$(echo "$TF_JSON" | jq -r '.cloudwatch_dashboard_name.value // "gh-miAppEstado"')
           CW_LOG_GROUP=$(echo "$TF_JSON" | jq -r '.app_log_group_name.value // "/calculadora/calculadora"')
           CW_ALARM=$(echo "$TF_JSON" | jq -r '.codedeploy_alarm_name.value // "gh-alb-5xx"')
+          ECR_REGISTRY=$(echo "$TF_JSON" | jq -r '.ecr_registry_url.value // empty')
+          ECR_BACKEND=$(echo "$TF_JSON" | jq -r '.ecr_backend_repository_url.value // empty')
+          ECR_FRONTEND=$(echo "$TF_JSON" | jq -r '.ecr_frontend_repository_url.value // empty')
 
           echo "alb_url=http://${ALB_DNS}" >> "$GITHUB_OUTPUT"
           echo "alb_dns=${ALB_DNS}" >> "$GITHUB_OUTPUT"
@@ -110,6 +117,9 @@ jobs:
           echo "cw_dashboard=${CW_DASHBOARD}" >> "$GITHUB_OUTPUT"
           echo "cw_log_group=${CW_LOG_GROUP}" >> "$GITHUB_OUTPUT"
           echo "cw_alarm=${CW_ALARM}" >> "$GITHUB_OUTPUT"
+          echo "ecr_registry=${ECR_REGISTRY}" >> "$GITHUB_OUTPUT"
+          echo "ecr_backend=${ECR_BACKEND}" >> "$GITHUB_OUTPUT"
+          echo "ecr_frontend=${ECR_FRONTEND}" >> "$GITHUB_OUTPUT"
 
           echo "✅ Infraestructura aplicada con éxito:"
           echo "   • ALB URL: http://${ALB_DNS}"
@@ -186,7 +196,7 @@ jobs:
       # ── 5. Validación y Pruebas de Observabilidad (CloudWatch & CodeDeploy) ────
       - name: Ejecutar Pruebas de Observabilidad (Prueba_observabilidad.sh)
         id: test_obs
-        if: always() && steps.tf_apply.outcome == 'success' && (inputs.skip_observability_test != true)
+        if: always() && steps.tf_apply.outcome == 'success' && (inputs.skip_observability_test != true && inputs.skip_observability_test != 'true')
         run: |
           ALB_URL="${{ steps.tf_outputs.outputs.alb_url }}"
           REGION="${{ steps.tf_outputs.outputs.aws_region }}"
@@ -230,7 +240,7 @@ jobs:
       # ── 6. Esperar cierto tiempo antes de destruir (Solo si todo fue exitoso) ─
       - name: Esperar antes de destruir la infraestructura
         id: wait_destroy
-        if: success() && steps.tf_apply.outcome == 'success' && (inputs.auto_destroy != false)
+        if: success() && steps.tf_apply.outcome == 'success' && (inputs.auto_destroy != false && inputs.auto_destroy != 'false')
         run: |
           WAIT_MIN="${{ inputs.wait_minutes || '5' }}"
           if ! [[ "$WAIT_MIN" =~ ^[0-9]+$ ]]; then
@@ -257,7 +267,7 @@ jobs:
           always() &&
           steps.tf_apply.outcome != '' &&
           steps.tf_apply.outcome != 'skipped' &&
-          (inputs.auto_destroy != false || failure())
+          (inputs.auto_destroy != false && inputs.auto_destroy != 'false' || failure())
         working-directory: ${{ env.TF_DIR }}
         run: |
           echo "================================================================="
