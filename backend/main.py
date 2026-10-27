@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logger import logger
 from app.core.middleware import LoggingMiddleware
-from app.routers import calculadora_router, health_router, auth_router
+from app.routers import calculadora_router, health_router, auth_router, boom_router
 
 
 @asynccontextmanager
