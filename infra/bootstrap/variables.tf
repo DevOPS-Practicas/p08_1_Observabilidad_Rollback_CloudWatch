@@ -62,10 +62,10 @@ variable "github_subject_claims" {
   default = [
 
 
-    "repo:DevOPS-Practicas@279809259/p07_1_asd_alb_codedeploy_terraform@1360985853:ref:refs/heads/main",
-    "repo:DevOPS-Practicas@279809259/p07_1_asd_alb_codedeploy_terraform@1360985853:ref:refs/heads/release/*",
-    "repo:DevOPS-Practicas@279809259/p07_1_asd_alb_codedeploy_terraform@1360985853:pull_request",
-    "repo:DevOPS-Practicas@279809259/p07_1_asd_alb_codedeploy_terraform@1360985853:merge"
+    "repo:DevOPS-Practicas@279809259/p08_1_Observabilidad_Rollback_CloudWatch@1412464040:ref:refs/heads/main",
+    "repo:DevOPS-Practicas@279809259/p08_1_Observabilidad_Rollback_CloudWatch@1412464040:ref:refs/heads/release/*",
+    "repo:DevOPS-Practicas@279809259/p08_1_Observabilidad_Rollback_CloudWatch@1412464040:pull_request",
+    "repo:DevOPS-Practicas@279809259/p08_1_Observabilidad_Rollback_CloudWatch@1412464040:merge"
   ]
 }
 

@@ -40,10 +40,10 @@ Combina **Infraestructura como Código (IaC)** con **Terraform**, contenerizaci�
 .
 ├── .github/
 │   └── workflows/
-│       ├── tests.yaml              # Pipeline CI: Pruebas unitarias en ramas feature/*
-│       ├── build-deploy.yaml       # Pipeline CD: Build de imágenes, push a ECR y deploy en main
-│       ├── deploy-test-destroy.yml # Pipeline E2E: Despliegue, test ALB y destrucción automática
-│       └── terraform-deploy.yml    # Pipeline IaC: Plan, Apply y Destroy de Terraform
+│       ├── ci-app.yml              # Pipeline CI: Pruebas de Backend (pytest), Frontend (Jest/build) y Docker
+│       ├── ci-terraform.yml        # Pipeline CI: Terraform format, validate y plan en PRs
+│       ├── cd-terraform-deploy.yml # Pipeline CD: Despliegue de Infraestructura + App, Health Check y Observabilidad
+│       └── deploy-test-destroy.yml # Pipeline E2E: Despliegue completo, pruebas de carga ALB y destrucción automática
 ├── backend/                        # API REST en FastAPI (Python 3.9)
 │   ├── app/
 │   │   ├── core/                   # Configuración, logger estructurado, CORS, middleware y seguridad JWT

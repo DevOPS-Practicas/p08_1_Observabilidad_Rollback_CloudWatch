@@ -85,3 +85,24 @@ output "aws_region" {
   description = "Región de AWS configurada"
   value       = var.aws_region
 }
+
+
+# Outputs de Observabilidad 
+# ------------------------------------------------------------------------------
+# 6. Outputs
+# ------------------------------------------------------------------------------
+
+output "cloudwatch_dashboard_name" {
+  description = "Nombre del dashboard con el estado del sistema"
+  value       = aws_cloudwatch_dashboard.main.dashboard_name
+}
+
+output "app_log_group_name" {
+  description = "Log group con los logs de los contenedores"
+  value       = aws_cloudwatch_log_group.app.name
+}
+
+output "codedeploy_alarm_name" {
+  description = "Alarma registrada en el deployment group para el rollback automático"
+  value       = aws_cloudwatch_metric_alarm.alb_5xx.alarm_name
+}

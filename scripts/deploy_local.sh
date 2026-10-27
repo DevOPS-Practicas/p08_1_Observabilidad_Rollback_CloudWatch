@@ -33,12 +33,13 @@ CODEDEPLOY_GROUP=$(echo "$TF_JSON" | jq -r '.codedeploy_deployment_group_name.va
 ALB_DNS=$(echo "$TF_JSON" | jq -r '.alb_dns_name.value // empty')
 EC2_IPS=$(echo "$TF_JSON" | jq -r '.ec2_public_ips.value[]? // empty')
 
-if [ -z "$BACKEND_ECR_REPO" ] || [ -z "$FRONTEND_ECR_REPO" ] || [ -z "$S3_BUCKET" ] || [ -z "$CODEDEPLOY_APP" ]; then
+if [ -z "$BACKEND_ECR_REPO" ] || [ -z "$FRONTEND_ECR_REPO" ] || [ -z "$S3_BUCKET" ] || [ -z "$CODEDEPLOY_APP" ] || [ -z "$ECR_REGISTRY" ]; then
   echo "❌ Error: No se pudieron obtener los outputs de Terraform. ¿Ya ejecutaste 'terraform apply' en el directorio infra/main/?"
   exit 1
 fi
 
 echo "✅ Región: $AWS_REGION"
+echo "✅ ECR Registry: $ECR_REGISTRY"
 echo "✅ ECR Backend: $BACKEND_ECR_REPO"
 echo "✅ ECR Frontend: $FRONTEND_ECR_REPO"
 echo "✅ S3 Bucket: $S3_BUCKET"
@@ -56,13 +57,13 @@ cd "$ROOT_DIR"
 IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
 echo ""
 echo "🐳 [1/2] Construyendo y subiendo imagen del Backend (Tag: $IMAGE_TAG y latest)..."
-docker build -t "${BACKEND_ECR_REPO}:${IMAGE_TAG}" -t "${BACKEND_ECR_REPO}:latest" ./backend
+docker build --platform linux/amd64 -t "${BACKEND_ECR_REPO}:${IMAGE_TAG}" -t "${BACKEND_ECR_REPO}:latest" ./backend
 docker push "${BACKEND_ECR_REPO}:${IMAGE_TAG}"
 docker push "${BACKEND_ECR_REPO}:latest"
 
 echo ""
 echo "🐳 [2/2] Construyendo y subiendo imagen del Frontend (Tag: $IMAGE_TAG y latest)..."
-docker build -t "${FRONTEND_ECR_REPO}:${IMAGE_TAG}" -t "${FRONTEND_ECR_REPO}:latest" ./frontend
+docker build --platform linux/amd64 -t "${FRONTEND_ECR_REPO}:${IMAGE_TAG}" -t "${FRONTEND_ECR_REPO}:latest" ./frontend
 docker push "${FRONTEND_ECR_REPO}:${IMAGE_TAG}"
 docker push "${FRONTEND_ECR_REPO}:latest"
 
@@ -71,7 +72,20 @@ echo ""
 echo "📦 Empaquetando artefactos de despliegue (appspec.yml, docker-compose.yml, scripts)..."
 BUNDLE_FILE="/tmp/bundle-${IMAGE_TAG}.zip"
 rm -f "$BUNDLE_FILE"
-zip -r "$BUNDLE_FILE" appspec.yml docker-compose.yml scripts/ -x "scripts/deploy_local.sh"
+
+# Se empaqueta desde una carpeta temporal para añadir archivos generados sin ensuciar el repo
+STAGE_DIR="$(mktemp -d)"
+cp appspec.yml docker-compose.yml "$STAGE_DIR/"
+cp -r scripts "$STAGE_DIR/scripts"
+rm -f "$STAGE_DIR/scripts/deploy_local.sh"
+
+# Versión de imagen de ESTA revisión (la lee start_app.sh)
+echo "$IMAGE_TAG" > "$STAGE_DIR/scripts/VERSION"
+# Espera opcional del hook ValidateService (0 = sin espera). Solo para la demo.
+echo "${VALIDATE_SLEEP_SECONDS:-0}" > "$STAGE_DIR/scripts/VALIDATE_SLEEP"
+
+(cd "$STAGE_DIR" && zip -r "$BUNDLE_FILE" appspec.yml docker-compose.yml scripts/)
+rm -rf "$STAGE_DIR"
 
 echo "☁️ Subiendo bundle a Amazon S3 (s3://${S3_BUCKET}/releases/app-${IMAGE_TAG}.zip)..."
 aws s3 cp "$BUNDLE_FILE" "s3://${S3_BUCKET}/releases/app-${IMAGE_TAG}.zip"
@@ -108,7 +122,8 @@ if [ "$DEPLOY_SUCCESS" = true ]; then
     done
   fi
 else
-  echo "⚠️ El despliegue falló o sigue en progreso. Consulta los logs con:"
-  echo "   aws deploy get-deployment --deployment-id $DEPLOYMENT_ID"
+  echo "⚠️ El despliegue falló, fue detenido o sigue en progreso."
+  aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" \
+    --query 'deploymentInfo.{estado:status,error:errorInformation}' --output json
   exit 1
 fi

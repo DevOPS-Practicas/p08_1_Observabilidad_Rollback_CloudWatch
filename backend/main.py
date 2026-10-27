@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logger import logger
 from app.core.middleware import LoggingMiddleware
-from app.routers import calculadora_router, health_router, auth_router
+from app.routers import calculadora_router, health_router, auth_router, boom_router
 
 
 @asynccontextmanager
@@ -62,3 +62,4 @@ app.add_middleware(LoggingMiddleware)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(calculadora_router)
+app.include_router(boom_router)

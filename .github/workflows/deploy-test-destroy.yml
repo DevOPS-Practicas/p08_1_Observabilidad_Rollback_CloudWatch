@@ -29,6 +29,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: e2e-deploy-lifecycle
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read
@@ -95,6 +99,9 @@ jobs:
           CD_APP=$(echo "$TF_JSON" | jq -r '.codedeploy_app_name.value // empty')
           CD_GROUP=$(echo "$TF_JSON" | jq -r '.codedeploy_deployment_group_name.value // empty')
           REGION=$(echo "$TF_JSON" | jq -r '.aws_region.value // "${{ env.AWS_REGION }}"')
+          ECR_REGISTRY=$(echo "$TF_JSON" | jq -r '.ecr_registry_url.value // empty')
+          ECR_BACKEND=$(echo "$TF_JSON" | jq -r '.ecr_backend_repository_url.value // empty')
+          ECR_FRONTEND=$(echo "$TF_JSON" | jq -r '.ecr_frontend_repository_url.value // empty')
 
           echo "alb_url=http://${ALB_DNS}" >> "$GITHUB_OUTPUT"
           echo "alb_dns=${ALB_DNS}" >> "$GITHUB_OUTPUT"
@@ -104,6 +111,9 @@ jobs:
           echo "codedeploy_app=${CD_APP}" >> "$GITHUB_OUTPUT"
           echo "codedeploy_group=${CD_GROUP}" >> "$GITHUB_OUTPUT"
           echo "aws_region=${REGION}" >> "$GITHUB_OUTPUT"
+          echo "ecr_registry=${ECR_REGISTRY}" >> "$GITHUB_OUTPUT"
+          echo "ecr_backend=${ECR_BACKEND}" >> "$GITHUB_OUTPUT"
+          echo "ecr_frontend=${ECR_FRONTEND}" >> "$GITHUB_OUTPUT"
 
           echo "✅ Infraestructura desplegada con éxito:"
           echo "   • ALB URL: http://${ALB_DNS}"
@@ -179,6 +189,8 @@ jobs:
         id: test_alb
         run: |
           ALB_URL="${{ steps.tf_outputs.outputs.alb_url }}"
+          TG_ARN="${{ steps.tf_outputs.outputs.target_group_arn }}"
+          ASG_NAME="${{ steps.tf_outputs.outputs.asg_name }}"
           REQUESTS="${{ inputs.test_requests || '200' }}"
           CONCURRENCY="${{ inputs.test_concurrency || '10' }}"
           REGION="${{ steps.tf_outputs.outputs.aws_region }}"
@@ -191,6 +203,8 @@ jobs:
           echo "⚖️ Ejecutando pruebas de balanceo y rendimiento con test_alb.sh..."
           ./scripts/test_alb.sh \
             -u "$ALB_URL" \
+            --target-group "$TG_ARN" \
+            --asg-name "$ASG_NAME" \
             -n "$REQUESTS" \
             -c "$CONCURRENCY" \
             -r "$REGION" \
@@ -215,7 +229,7 @@ jobs:
       # ── 6. Esperar cierto tiempo antes de destruir (Solo si todo fue exitoso) ─
       - name: Esperar antes de destruir la infraestructura
         id: wait_destroy
-        if: success() && steps.tf_apply.outcome == 'success' && (inputs.auto_destroy != false)
+        if: success() && steps.tf_apply.outcome == 'success' && (inputs.auto_destroy != false && inputs.auto_destroy != 'false')
         run: |
           WAIT_MIN="${{ inputs.wait_minutes || '5' }}"
           if ! [[ "$WAIT_MIN" =~ ^[0-9]+$ ]]; then
@@ -242,7 +256,7 @@ jobs:
           always() &&
           steps.tf_apply.outcome != '' &&
           steps.tf_apply.outcome != 'skipped' &&
-          (inputs.auto_destroy != false || failure())
+          (inputs.auto_destroy != false && inputs.auto_destroy != 'false' || failure())
         working-directory: ${{ env.TF_DIR }}
         run: |
           echo "================================================================="

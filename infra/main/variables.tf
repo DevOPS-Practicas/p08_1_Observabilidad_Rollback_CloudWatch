@@ -88,3 +88,47 @@ variable "allowed_ssh_cidrs" {
   type        = list(string)
   default     = []
 }
+
+
+# Variables para la parte de observabilidad 
+# ------------------------------------------------------------------------------
+# 0. Variables y locals
+# ------------------------------------------------------------------------------
+
+
+variable "log_retention_days" {
+  description = "Días que CloudWatch conserva los logs de la aplicación"
+  type        = number
+  default     = 7
+}
+
+variable "cpu_alarm_threshold" {
+  description = "Porcentaje de CPU promedio del ASG a partir del cual se activa la alarma"
+  type        = number
+  default     = 80
+}
+
+variable "memory_alarm_threshold" {
+  description = "Porcentaje de memoria usada promedio del ASG a partir del cual se activa la alarma"
+  type        = number
+  default     = 80
+}
+
+variable "latency_p99_threshold_seconds" {
+  description = "Latencia p99 máxima aceptable del ALB, en SEGUNDOS (0.5 = 500 ms)"
+  type        = number
+  default     = 0.5
+}
+
+variable "alarm_actions" {
+  description = "ARNs (por ejemplo un tópico SNS) a notificar cuando una alarma pasa a ALARM. Vacío = sin notificaciones"
+  type        = list(string)
+  default     = []
+}
+
+# Esta variable se usa en el deployment group de main.tf (ver Paso 4 de la guía)
+variable "codedeploy_traffic_control" {
+  description = "true = CodeDeploy saca cada instancia del ALB mientras la actualiza (WITH_TRAFFIC_CONTROL). false = no la saca (WITHOUT_TRAFFIC_CONTROL), necesario para la demo de rollback por alarma"
+  type        = bool
+  default     = true
+}
